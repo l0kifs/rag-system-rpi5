@@ -1,0 +1,27 @@
+services:
+  rag-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: rag-system-rpi5
+    ports:
+      - "8000:8000"
+    volumes:
+      - chroma-data:/data/chroma
+      - ./src:/app/src:ro
+    environment:
+      - CHROMA_PERSIST_DIRECTORY=/data/chroma
+      - COLLECTION_NAME=rag_documents
+      - EMBEDDING_MODEL=all-MiniLM-L6-v2
+      - TOP_K_RESULTS=5
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  chroma-data:
+    driver: local
