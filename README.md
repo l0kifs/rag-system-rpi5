@@ -1,6 +1,6 @@
 # RAG System for Raspberry Pi 5
 
-A simple and efficient Retrieval-Augmented Generation (RAG) system optimized for Raspberry Pi 5, built with FastAPI, ChromaDB, and sentence-transformers.
+A simple and efficient Retrieval-Augmented Generation (RAG) system optimized for Raspberry Pi 5, built with FastAPI, ChromaDB, Ollama, and sentence-transformers.
 
 ## Features
 
@@ -9,35 +9,36 @@ A simple and efficient Retrieval-Augmented Generation (RAG) system optimized for
 - 🐳 **Docker Compose** - Easy deployment with containerization
 - 🔍 **ChromaDB** - Lightweight vector database for document storage
 - 🧠 **Sentence Transformers** - Efficient text embeddings optimized for ARM
+- 🤖 **Ollama** - Local LLM inference for intelligent responses
 - 🔌 **RESTful API** - Simple HTTP endpoints for document management and querying
 
 ## Architecture
 
 ```
-┌─────────────────┐
-│   FastAPI App   │
-│                 │
-│  ┌───────────┐  │
-│  │ REST API  │  │
-│  └─────┬─────┘  │
-│        │        │
-│  ┌─────▼─────┐  │
-│  │   RAG     │  │
-│  │  Service  │  │
-│  └─────┬─────┘  │
-│        │        │
-│  ┌─────▼─────┐  │
-│  │ ChromaDB  │  │
-│  └───────────┘  │
-└─────────────────┘
+┌─────────────────────────────────────┐
+│         FastAPI App                 │
+│                                     │
+│  ┌───────────┐       ┌───────────┐ │
+│  │ REST API  │───────│   LLM     │ │
+│  └─────┬─────┘       │  Service  │ │
+│        │             └─────┬─────┘ │
+│  ┌─────▼─────┐             │       │
+│  │   RAG     │             │       │
+│  │  Service  │             │       │
+│  └─────┬─────┘             │       │
+│        │                   │       │
+│  ┌─────▼─────┐       ┌─────▼─────┐ │
+│  │ ChromaDB  │       │  Ollama   │ │
+│  └───────────┘       └───────────┘ │
+└─────────────────────────────────────┘
 ```
 
 ## Prerequisites
 
 - Raspberry Pi 5 (or any ARM64/x86_64 system)
 - Docker and Docker Compose installed
-- At least 2GB of free RAM
-- At least 2GB of free disk space
+- At least 4GB of RAM (8GB recommended for LLM)
+- At least 4GB of free disk space (for models)
 
 ## Quick Start
 
@@ -54,14 +55,24 @@ A simple and efficient Retrieval-Augmented Generation (RAG) system optimized for
    docker-compose up -d
    ```
 
-3. **Check the logs:**
+3. **Pull the LLM model (first time only):**
+   ```bash
+   docker exec ollama ollama pull qwen2.5:0.5b
+   ```
+   
+   Alternative models for RPi5:
+   - `phi3` - Better quality, slightly slower
+   - `tinyllama` - Fastest, basic quality
+
+4. **Check the logs:**
    ```bash
    docker-compose logs -f
    ```
 
-4. **Access the API:**
+5. **Access the API:**
    - API Documentation: http://localhost:8000/docs
    - Health Check: http://localhost:8000/health
+   - Ollama API: http://localhost:11434
 
 ### Local Development
 
@@ -112,6 +123,19 @@ Content-Type: application/json
 }
 ```
 
+### Chat with LLM (New!)
+```bash
+POST /chat
+Content-Type: application/json
+
+{
+  "query": "What is machine learning?",
+  "top_k": 3,
+  "temperature": 0.7,
+  "max_tokens": 512
+}
+```
+
 ### Get Statistics
 ```bash
 GET /stats
@@ -156,6 +180,17 @@ curl -X POST http://localhost:8000/query \
 curl http://localhost:8000/stats
 ```
 
+**Chat with LLM:**
+```bash
+curl -X POST http://localhost:8000/chat \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "What is machine learning?",
+    "top_k": 3,
+    "temperature": 0.7
+  }'
+```
+
 ### Using Python
 
 ```python
@@ -180,6 +215,16 @@ response = requests.post(
     }
 )
 print(response.json())
+
+# Chat with LLM
+response = requests.post(
+    "http://localhost:8000/chat",
+    json={
+        "query": "Explain Python based on the documents",
+        "top_k": 3
+    }
+)
+print(response.json())
 ```
 
 ## Configuration
@@ -193,6 +238,12 @@ COLLECTION_NAME=rag_documents
 
 # Embedding model (optimized for ARM)
 EMBEDDING_MODEL=all-MiniLM-L6-v2
+
+# Ollama LLM settings
+OLLAMA_HOST=http://localhost:11434
+OLLAMA_MODEL=qwen2.5:0.5b
+OLLAMA_TEMPERATURE=0.7
+OLLAMA_MAX_TOKENS=512
 
 # API settings
 MAX_UPLOAD_SIZE=10485760
@@ -228,24 +279,45 @@ docker-compose down -v
 
 ## Performance Tips for Raspberry Pi 5
 
-1. **Memory Management:** The system uses `all-MiniLM-L6-v2` model which is lightweight and optimized for embedded systems
-2. **Persistent Storage:** Data is stored in Docker volumes, ensuring persistence across restarts
-3. **Resource Limits:** Consider setting memory limits in docker-compose.yml for production use
-4. **Model Caching:** The embedding model is cached after first load, improving subsequent startup times
+### LLM Model Selection
+- **qwen2.5:0.5b** (Default) - Fastest, lowest RAM (~500MB), best for quick responses
+- **phi3** - Better quality, moderate speed, uses ~2GB RAM
+- **tinyllama** - Very fast, basic quality, ~400MB RAM
+
+### General Tips
+1. **Memory Management:** The system uses `all-MiniLM-L6-v2` embedding model which is lightweight and optimized for embedded systems
+2. **LLM Performance:** First LLM inference will be slower as the model loads. Subsequent queries are faster
+3. **Persistent Storage:** Data is stored in Docker volumes, ensuring persistence across restarts
+4. **Resource Limits:** Consider setting memory limits in docker-compose.yml for production use
+5. **Model Caching:** Both embedding and LLM models are cached after first load
+6. **Cooling:** Use active cooling (fan/heatsink) for sustained AI workloads
 
 ## Troubleshooting
 
 **Issue: Container fails to start**
-- Check logs: `docker-compose logs rag-app`
-- Ensure sufficient memory is available
+- Check logs: `docker-compose logs rag-app` or `docker-compose logs ollama`
+- Ensure sufficient memory is available (4GB+ recommended)
 - Verify Docker and Docker Compose versions
+
+**Issue: Chat endpoint returns 503**
+- Ensure Ollama container is running: `docker ps`
+- Check Ollama logs: `docker-compose logs ollama`
+- Verify model is pulled: `docker exec ollama ollama list`
+- Pull model manually: `docker exec ollama ollama pull qwen2.5:0.5b`
 
 **Issue: Slow embedding generation**
 - This is normal on first run as the model needs to be downloaded
 - Subsequent runs will be faster due to caching
 
+**Issue: Slow LLM responses**
+- First response after model load is slower (model initialization)
+- Use a smaller model like `qwen2.5:0.5b` or `tinyllama`
+- Reduce `max_tokens` in chat requests
+- Reduce `top_k` to retrieve fewer context documents
+
 **Issue: Out of memory errors**
 - Reduce `TOP_K_RESULTS` in configuration
+- Use a smaller LLM model
 - Use a smaller embedding model
 - Increase swap space on Raspberry Pi
 

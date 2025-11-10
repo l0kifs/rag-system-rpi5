@@ -1,10 +1,12 @@
 """Configuration for the RAG system."""
 
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     """Application settings."""
+    
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
     
     app_name: str = "RAG System RPi5"
     app_version: str = "0.1.0"
@@ -20,9 +22,11 @@ class Settings(BaseSettings):
     max_upload_size: int = 10 * 1024 * 1024  # 10MB
     top_k_results: int = 5
     
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
+    # Ollama settings for LLM integration
+    ollama_host: str = "http://localhost:11434"
+    ollama_model: str = "qwen2.5:0.5b"
+    ollama_temperature: float = 0.7
+    ollama_max_tokens: int = 512
 
 
 settings = Settings()

@@ -63,3 +63,21 @@ class HealthResponse(BaseModel):
     status: str = Field(..., description="Health status")
     app_name: str = Field(..., description="Application name")
     version: str = Field(..., description="Application version")
+
+
+class ChatRequest(BaseModel):
+    """Request model for chat with LLM."""
+    
+    query: str = Field(..., description="User's question or query", min_length=1)
+    top_k: Optional[int] = Field(default=3, description="Number of context documents to retrieve", ge=1, le=10)
+    temperature: Optional[float] = Field(default=None, description="LLM temperature (0.0-1.0)", ge=0.0, le=1.0)
+    max_tokens: Optional[int] = Field(default=None, description="Maximum tokens in response", ge=50, le=2048)
+
+
+class ChatResponse(BaseModel):
+    """Response model for chat."""
+    
+    query: str = Field(..., description="Original query")
+    response: str = Field(..., description="LLM generated response")
+    sources: List[QueryResult] = Field(..., description="Source documents used for context")
+    model: str = Field(..., description="LLM model used")
