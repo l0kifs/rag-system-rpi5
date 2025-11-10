@@ -55,14 +55,23 @@ A simple and efficient Retrieval-Augmented Generation (RAG) system optimized for
    docker-compose up -d
    ```
 
-3. **Pull the LLM model (first time only):**
+3. **Install the LLM model (first time only):**
    ```bash
+   # Option 1: Use the installation script (recommended)
+   ./scripts/install_model.sh
+   
+   # Option 2: Manual installation
    docker exec ollama ollama pull qwen2.5:0.5b
    ```
    
    Alternative models for RPi5:
    - `phi3` - Better quality, slightly slower
    - `tinyllama` - Fastest, basic quality
+   
+   To install a different model:
+   ```bash
+   ./scripts/install_model.sh phi3
+   ```
 
 4. **Check the logs:**
    ```bash
