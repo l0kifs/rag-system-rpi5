@@ -71,6 +71,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+#### LLM Integration (Ollama)
+- Ollama container integration for local LLM inference
+- New `llm_service.py` module for LLM interactions
+- Intelligent prompt building with RAG context
+- Support for multiple RPi5-optimized models (qwen2.5:0.5b, phi3, tinyllama)
+- Configurable LLM parameters (temperature, max_tokens)
+- Graceful degradation when LLM service unavailable
+
+#### New API Endpoints
+- `POST /chat` - LLM-powered chat with RAG context
+  - Accepts query, top_k, temperature, max_tokens parameters
+  - Returns AI-generated response with source documents
+  - Model information in response
+
+#### Configuration
+- `OLLAMA_HOST` - Ollama service endpoint (default: http://localhost:11434)
+- `OLLAMA_MODEL` - LLM model to use (default: qwen2.5:0.5b)
+- `OLLAMA_TEMPERATURE` - Generation temperature (default: 0.7)
+- `OLLAMA_MAX_TOKENS` - Maximum response length (default: 512)
+- Fixed Pydantic v2 deprecation warnings
+
+#### Documentation
+- Comprehensive LLM Integration Guide (`docs/LLM_INTEGRATION.md`)
+- Updated README with Ollama setup instructions
+- Performance optimization tips for Raspberry Pi 5
+- Model selection guidelines
+- Troubleshooting section for LLM issues
+- Updated examples README with chat demonstrations
+
+#### Tools & Scripts
+- `scripts/install_model.sh` - Automated LLM model installation
+- `examples/chat_example.py` - Complete chat functionality demonstration
+- Colorized output and error handling in scripts
+
+#### Testing
+- Comprehensive test suite for chat endpoint
+- Input validation tests (temperature, top_k, max_tokens)
+- Service availability tests
+- Mock-based unit tests for LLM service
+
+#### Docker Compose
+- Ollama service with health checks
+- Persistent volume for model storage
+- Service dependencies properly configured
+- Network connectivity between services
+
+### Best Practices Applied
+- Used lightweight qwen2.5:0.5b model for optimal RPi5 performance
+- Persistent Docker volumes for model caching
+- Comprehensive error handling and logging
+- Backward compatibility maintained
+- Security scanning passed (0 vulnerabilities)
+
 ### Planned Features
 - Multiple collection support
 - User authentication and authorization
@@ -81,15 +136,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Prometheus metrics integration
 - Rate limiting
 - API versioning
+- Streaming responses for long LLM outputs
 
 ### Under Consideration
-- Web UI for document management
+- Web UI for document management and chat
 - CLI tool for system administration
 - Database migration tools
-- Integration with popular LLM APIs
 - Document preprocessing pipelines
 - Multi-language support
 - Export/import functionality
+- Fine-tuning support for custom models
 
 ---
 

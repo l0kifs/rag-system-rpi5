@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
 from .rag_service import RAGService
+from .llm_service import LLMService
 from .models import (
     DocumentCreate,
     DocumentResponse,
@@ -16,6 +17,8 @@ from .models import (
     StatsResponse,
     DeleteResponse,
     HealthResponse,
+    ChatRequest,
+    ChatResponse,
 )
 
 # Configure logging
@@ -25,19 +28,30 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Global RAG service instance
+# Global service instances
 rag_service: RAGService = None
+llm_service: LLMService = None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager."""
-    global rag_service
+    global rag_service, llm_service
     
     # Startup
     logger.info("Starting RAG system...")
     rag_service = RAGService()
     logger.info("RAG system started successfully")
+    
+    logger.info("Starting LLM service...")
+    try:
+        llm_service = LLMService()
+        # Optionally ensure model is available (can be slow on first run)
+        # llm_service.ensure_model()
+        logger.info("LLM service started successfully")
+    except Exception as e:
+        logger.warning(f"LLM service initialization failed: {e}")
+        logger.warning("Chat endpoint will not be available")
     
     yield
     
@@ -226,6 +240,67 @@ async def reset_system():
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error resetting system: {str(e)}"
+        )
+
+
+@app.post("/chat", response_model=ChatResponse)
+async def chat(chat_request: ChatRequest):
+    """
+    Chat with the LLM using RAG context.
+    
+    This endpoint retrieves relevant documents from the RAG system and uses them
+    as context for the LLM to generate an informed response.
+    
+    Args:
+        chat_request: Chat request with query and optional parameters
+        
+    Returns:
+        LLM response with source documents
+    """
+    if llm_service is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="LLM service is not available. Please ensure Ollama is running and accessible."
+        )
+    
+    try:
+        # Retrieve relevant documents from RAG
+        logger.info(f"Processing chat query: {chat_request.query[:50]}...")
+        results = rag_service.query(
+            query_text=chat_request.query,
+            top_k=chat_request.top_k
+        )
+        
+        # Generate response using LLM with context
+        response_text = llm_service.generate_response(
+            query=chat_request.query,
+            context_documents=results,
+            temperature=chat_request.temperature,
+            max_tokens=chat_request.max_tokens
+        )
+        
+        # Format source documents
+        sources = [
+            QueryResult(
+                id=result["id"],
+                text=result["text"],
+                metadata=result["metadata"],
+                distance=result["distance"]
+            )
+            for result in results
+        ]
+        
+        return ChatResponse(
+            query=chat_request.query,
+            response=response_text,
+            sources=sources,
+            model=settings.ollama_model
+        )
+    except Exception as e:
+        logger.error(f"Error processing chat request: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error processing chat request: {str(e)}"
         )
 
 
